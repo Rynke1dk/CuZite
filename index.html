@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Cuz - Epic Retrowave</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #050505;
+            font-family: 'Courier New', Courier, monospace;
+        }
+        canvas {
+            display: block;
+        }
+        #loading {
+            position: absolute;
+            top: 50%;
+            left: 0;
+            width: 100%;
+            text-align: center;
+            color: #ff00a0;
+            font-size: 24px;
+            font-weight: bold;
+            text-transform: uppercase;
+            letter-spacing: 10px;
+            text-shadow: 0 0 10px #ff00a0, 0 0 20px #00ffff;
+            transform: translateY(-50%);
+            transition: opacity 0.5s ease-out;
+            pointer-events: none;
+            z-index: 10;
+        }
+    </style>
+    <!-- Import Anime.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.2/anime.min.js"></script>
+
+    <!-- Setup Three.js Import Map -->
+    <script type="importmap">
+        {
+            "imports": {
+                "three": "https://unpkg.com/three@0.160.0/build/three.module.js",
+                "three/addons/": "https://unpkg.com/three@0.160.0/examples/jsm/"
+            }
+        }
+    </script>
+</head>
+<body>
+
+    <div id="loading">Initializing Grid...</div>
+
+    <script type="module">
+        import * as THREE from 'three';
+        import { FontLoader } from 'three/addons/loaders/FontLoader.js';
+        import { TextGeometry } from 'three/addons/geometries/TextGeometry.js';
+        import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+        import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+        import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+        // --- Basic Setup ---
+        const scene = new THREE.Scene();
+        // Add deep purple fog to blend the horizon
+        scene.fog = new THREE.FogExp2(0x0a001a, 0.015);
+
+        const camera = new THREE.PerspectiveCamera(60, window.innerWidth / window.innerHeight, 0.1, 1000);
+        
+        const renderer = new THREE.WebGLRenderer({ antialias: false });
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        renderer.setPixelRatio(window.devicePixelRatio);
+        renderer.toneMapping = THREE.ReinhardToneMapping;
+        renderer.toneMappingExposure = 1.8;
+        document.body.appendChild(renderer.domElement);
+
+        // --- Post Processing (Glow/Bloom) ---
+        const renderScene = new RenderPass(scene, camera);
+        const bloomPass = new UnrealBloomPass(
+            new THREE.Vector2(window.innerWidth, window.innerHeight),
+            1.8,  // Strength
+            0.5,  // Radius
+            0.1   // Threshold
+        );
+        const composer = new EffectComposer(renderer);
+        composer.addPass(renderScene);
+        composer.addPass(bloomPass);
+
+        // --- Lighting ---
+        const ambientLight = new THREE.AmbientLight(0x221144, 2);
+        scene.add(ambientLight);
+
+        // Cyan light from above
+        const topLight = new THREE.DirectionalLight(0x00ffff, 4);
+        topLight.position.set(0, 10, 5);
+        scene.add(topLight);
+
+        // Magenta light from below
+        const bottomLight = new THREE.DirectionalLight(0xff00a0, 4);
+        bottomLight.position.set(0, -10, 5);
+        scene.add(bottomLight);
+
+        // --- Elements ---
+
+        // 1. Synthwave Sun
+        const sunGroup = new THREE.Group();
+        const sunGeo = new THREE.CircleGeometry(25, 64);
+        const sunMat = new THREE.MeshBasicMaterial({ color: 0xffaa00, fog: false });
+        const sun = new THREE.Mesh(sunGeo, sunMat);
+        sunGroup.add(sun);
+
+        // Sun cuts (Black planes intersecting the sun)
+        for(let i = 0; i < 7; i++) {
+            const height = 0.4 + i * 0.3; // Make slices thicker at bottom
+            const yPos = -22 + i * 3.5;
+            const cutGeo = new THREE.PlaneGeometry(60, height);
+            const cutMat = new THREE.MeshBasicMaterial({ color: 0x050505, fog: false });
+            const cut = new THREE.Mesh(cutGeo, cutMat);
+            cut.position.set(0, yPos, 0.1);
+            sunGroup.add(cut);
+        }
+        sunGroup.position.set(0, 5, -80);
+        scene.add(sunGroup);
+
+        // 2. Moving Neon Floor Grid
+        const gridGeo = new THREE.PlaneGeometry(400, 400, 80, 80);
+        const gridMat = new THREE.MeshBasicMaterial({ 
+            color: 0xff00a0, 
+            wireframe: true, 
+            transparent: true, 
+            opacity: 0.3 
+        });
+        const grid = new THREE.Mesh(gridGeo, gridMat);
+        grid.rotation.x = -Math.PI / 2;
+        grid.position.y = -6;
+        scene.add(grid);
+
+        // 3. Starfield / Speed Dust
+        const starsGeo = new THREE.BufferGeometry();
+        const starsCount = 1500;
+        const posArray = new Float32Array(starsCount * 3);
+        for(let i = 0; i < starsCount * 3; i++) {
+            posArray[i] = (Math.random() - 0.5) * 300;
+        }
+        starsGeo.setAttribute('position', new THREE.BufferAttribute(posArray, 3));
+        const starsMat = new THREE.PointsMaterial({ 
+            size: 0.2, 
+            color: 0x00ffff, 
+            transparent: true, 
+            opacity: 0.8 
+        });
+        const starMesh = new THREE.Points(starsGeo, starsMat);
+        scene.add(starMesh);
+
+        // 4. 3D Text ("Cuz")
+        let textMeshGroup = new THREE.Group();
+        scene.add(textMeshGroup);
+
+        const loader = new FontLoader();
+        // Loading a standard bold font from Unpkg CDN
+        loader.load('https://unpkg.com/three@0.160.0/examples/fonts/helvetiker_bold.typeface.json', function (font) {
+            
+            document.getElementById('loading').style.opacity = 0;
+
+            const textGeo = new TextGeometry('Cuz', {
+                font: font,
+                size: 7,
+                height: 2.5,
+                curveSegments: 12,
+                bevelEnabled: true,
+                bevelThickness: 0.2,
+                bevelSize: 0.1,
+                bevelSegments: 5
+            });
+            textGeo.center();
+
+            // Chrome/Metallic Material
+            const textMat = new THREE.MeshStandardMaterial({
+                color: 0xffffff,
+                metalness: 1.0,
+                roughness: 0.15
+            });
+            const textMesh = new THREE.Mesh(textGeo, textMat);
+            textMeshGroup.add(textMesh);
+
+            // Neon Glowing Outline around the text
+            const edgesGeo = new THREE.EdgesGeometry(textGeo);
+            const edgesMat = new THREE.LineBasicMaterial({ 
+                color: 0x00ffff, 
+                linewidth: 2,
+                transparent: true,
+                opacity: 0.8
+            });
+            const edgesMesh = new THREE.LineSegments(edgesGeo, edgesMat);
+            textMeshGroup.add(edgesMesh);
+
+            textMeshGroup.position.set(0, 2, -20);
+            textMeshGroup.scale.set(0, 0, 0); // Start hidden for Anime.js entrance
+
+            // --- Anime.js Epic Entrance Choreography ---
+            
+            const timeline = anime.timeline({
+                easing: 'easeOutExpo'
+            });
+
+            // Camera zooms in
+            timeline.add({
+                targets: camera.position,
+                z: [50, 15],
+                y: [10, 1],
+                duration: 4000
+            }, 0);
+
+            // Sun rises up
+            timeline.add({
+                targets: sunGroup.position,
+                y: [-30, 5],
+                duration: 3500
+            }, 0);
+
+            // Text scales up with a satisfying bounce
+            timeline.add({
+                targets: textMeshGroup.scale,
+                x: [0, 1],
+                y: [0, 1],
+                z: [0, 1],
+                duration: 2500,
+                easing: 'easeOutElastic(1, .5)'
+            }, 800);
+
+            // Continuous floating hover loop for text
+            setTimeout(() => {
+                anime({
+                    targets: textMeshGroup.position,
+                    y: '+=0.8',
+                    duration: 2000,
+                    direction: 'alternate',
+                    loop: true,
+                    easing: 'easeInOutSine'
+                });
+                
+                anime({
+                    targets: textMeshGroup.rotation,
+                    y: [-0.05, 0.05],
+                    x: [-0.02, 0.02],
+                    duration: 3000,
+                    direction: 'alternate',
+                    loop: true,
+                    easing: 'easeInOutSine'
+                });
+            }, 3000);
+
+        });
+
+        // --- Window Resize Handling ---
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            composer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        // --- Animation Loop ---
+        const clock = new THREE.Clock();
+
+        function animate() {
+            requestAnimationFrame(animate);
+            const delta = clock.getDelta();
+
+            // Animate grid for infinite forward motion illusion
+            // Grid segment size is 5 (400 size / 80 segments)
+            grid.position.z += 15 * delta;
+            if(grid.position.z >= 5) {
+                grid.position.z -= 5;
+            }
+
+            // Animate stars coming at camera
+            starMesh.position.z += 20 * delta;
+            if (starMesh.position.z > 150) {
+                starMesh.position.z -= 150;
+            }
+
+            // Render scene via composer for the bloom effect
+            composer.render();
+        }
+
+        animate();
+
+    </script>
+</body>
+</html>
